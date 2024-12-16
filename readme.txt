@@ -1,1 +1,0 @@
-A hackathon project on deconvolving SPM tip shape from scans.

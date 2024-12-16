@@ -1,0 +1,9 @@
+requests
+torch
+torchvision
+numpy
+matplotlib
+pandas
+spym
+ipykernel
+hvplot

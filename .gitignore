@@ -1,0 +1,4 @@
+data/raw_data/**
+.venv/**
+files-archive.zip
+data/filled_empty/stm_data.npy

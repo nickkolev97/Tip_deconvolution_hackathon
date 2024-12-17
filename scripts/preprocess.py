@@ -68,5 +68,20 @@ def main():
     else:
         print("No images found with the specified criteria.")
 
+    # save smaller train / test set for hackathon
+    imgs = np.load('data/filled_empty/stm_data.npy')
+    labels = np.load('data/filled_empty/stm_data_labels.npy')
+    train_imgs = imgs[:1200,0,:,:]
+    test_imgs = imgs[1200:1400,0,:,:]
+    train_labels = labels[:1200]
+    test_labels = labels[1200:1400]
+
+    # split train to 2 files for github
+    np.save('data/filled_empty/train_imgs_0.npy', train_imgs[:600])
+    np.save('data/filled_empty/train_imgs_1.npy', train_imgs[600:])
+    np.save('data/filled_empty/test_imgs.npy', test_imgs)
+    np.save('data/filled_empty/train_labels.npy', train_labels)
+    np.save('data/filled_empty/test_labels.npy', test_labels)
+
 if __name__ == "__main__":
     main()

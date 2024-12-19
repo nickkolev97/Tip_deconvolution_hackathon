@@ -39,7 +39,7 @@ optimizer1 = optim.Adam(autoencoder.parameters(), lr=0.001)
 scheduler1 = optim.lr_scheduler.ReduceLROnPlateau(optimizer1, 'min')
 
 # Train the autoencoder
-history = ae.train_autoencoder(
+history1 = ae.train_autoencoder(
     model=autoencoder,
     dataloader_train= data_loaders_train,
     dataloader_test= data_loaders_test,
@@ -52,6 +52,10 @@ history = ae.train_autoencoder(
     device= "cuda"  
 )
 
+np.save("history1_train_loss.npy", history1['train_loss'])
+np.save("history1_val_loss.npy", history1['val_loss'])
+
+
 # Create the autoencoder model with skip connections
 
 UNet_autoencoder = ae.UNetAutoencoder()
@@ -61,7 +65,7 @@ optimizer2 = optim.Adam(UNet_autoencoder.parameters(), lr=0.001)
 scheduler2 = optim.lr_scheduler.ReduceLROnPlateau(optimizer2, 'min')
 
 # Train the autoencoder
-history = ae.train_autoencoder(
+history2 = ae.train_autoencoder(
     model=autoencoder,
     dataloader_train= data_loaders_train,
     dataloader_test= data_loaders_test,
@@ -74,3 +78,6 @@ history = ae.train_autoencoder(
     device= "cuda"  
 )
 
+
+np.save("history2_train_loss.npy", history2['train_loss'])
+np.save("history2_val_loss.npy", history2['val_loss'])

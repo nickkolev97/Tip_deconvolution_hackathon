@@ -21,6 +21,8 @@ import time
 ########################
 # custom transforms
 
+# custom transforms
+
 class Double_tip1(object):
   '''
   Add a double tip artefact to the image. The parameters of the double tip are chosen randomly so
@@ -55,28 +57,32 @@ class Double_tip1(object):
       sigmoid_array = self.sigmoid(array,a,b)
       # Offset each pixel by a random value in x and y (between 5 and 10)
       # Generate random offsets for x and y
-      offset_x = torch.randint(1, 11, (1,))[0]
-      offset_y = torch.randint(2, 11, (1,))[0]
+      offset_min = round(array.shape[1]*2/512)
+      offset_max = round(array.shape[1]*5/512) 
+      offset_x = torch.randint(offset_min, offset_max, (1,))[0]
+      offset_y = torch.randint(offset_min, offset_max, (1,))[0]
       # make negative with 50% chance
       if random.random() < 0.5:
         offset_x = -offset_x
       if random.random() < 0.5:
         offset_y = -offset_y
-      #print('offset in x and y: ', offset_x, offset_y)
+     # print('offset in x and y: ', offset_x, offset_y)
 
       # Ensure offsets are within bounds
       _, rows, cols = array.shape
 
       # 80% of the time, apply median filter to sigmoided image,
       # other 20% apply gaussian
-      if random.random() < 0.8:
+      if random.random() < 0.7:
         # random integer between 0 and 11
-        median_size = np.random.randint(1, 7)
+        median_size = np.random.randint(5, 7)
+        #print('median size: ', median_size)
         # Apply median filter to the sigmoid image
         filtered_offset = median_filter(sigmoid_array, size=(1,median_size,median_size))
       else:
         # random num between 1 and 10
-        gaussian_std = np.random.uniform(1, 10)
+        gaussian_std = np.random.uniform(1.5, 2.5)
+       # print('gaussian std: ', gaussian_std)
         filtered_offset = gaussian_filter(sigmoid_array, sigma=gaussian_std)
 
       # Create a copy of the base array
@@ -105,7 +111,7 @@ class Double_tip1(object):
         result = result[:,:offset_x, :offset_y]
         label = array[:,:offset_x, :offset_y]
 
-      return torch.stack( (result, label), dim=0)
+      return torch.stack( (result, label), dim=0)[:,0,:,:]
 
 
 class RandomScanLineArtefact(object):
@@ -127,13 +133,14 @@ class RandomScanLineArtefact(object):
         scan_maxmin = (torch.clone(scan)-torch.min(scan))/(torch.max(scan)-torch.min(scan))
 
         if r1 < self.p:
-          rng = np.random.default_rng(12345) # random number generator
+          rng = np.random.default_rng() # random number generator
           res = scan.shape[1]
+         # print(res)
           num_lines = 15 # number of lines to add artefact to
           lines = rng.integers(0,res, (num_lines,)) # which scan lines to augment
-          columns = rng.integers(0,res, (num_lines,)) # the columns where the artefacts begin
+          columns = rng.integers(0,res-1, (num_lines,)) # the columns where the artefacts begin
           lengths = rng.integers(0, int(res*0.8), (num_lines,)) # the length of the artefacts
-          add_ons = rng.random(size=(num_lines,))/1.67 # random number between 0 and ~0.6 to add on to a scan line
+          add_ons = rng.random(size=(num_lines,))/2 # random number between 0 and 0.5 to add on to a scan line
           # add constant to single line
           for i in range(7):
             scan_maxmin[:, lines[i], columns[i]:columns[i]+lengths[i]] = scan_maxmin[:, lines[i], columns[i]:columns[i]+lengths[i]] + add_ons[i]
@@ -142,20 +149,27 @@ class RandomScanLineArtefact(object):
             scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]] = scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]] + add_ons[i]
           # add sinusoidal to single line
           for i in range(9,13):
-            end = rng.integers(200,314)/100
+            end_0 = round(res * 200/512)
+            end_1 = round(res * 314/512)
+            end = rng.integers(end_0,end_1)
             lengths[i] = scan_maxmin[:, lines[i], columns[i]:columns[i]+lengths[i]].shape[0] # correct length in case its too long
             cos = np.cos(np.linspace(0, end, num=lengths[i]) )
+            #print(scan_maxmin[:, lines[i], columns[i]:columns[i]+lengths[i]].shape, scan_maxmin[:, lines[i], columns[i]:columns[i]+lengths[i]].shape, cos*add_ons[i].shape)
             scan_maxmin[:, lines[i], columns[i]:columns[i]+lengths[i]] = scan_maxmin[:, lines[i], columns[i]:columns[i]+lengths[i]] + cos*add_ons[i]
           # add sinusoidal to two lines
-          for i in range(13,15):
-            end = rng.integers(200,314)/100
+          for i in range(13,num_lines):
+            end_0 = round(res * 200/512)
+            end_1 = round(res * 314/512)
+            end = rng.integers(end_0,end_1)
             lengths[i] = scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]].shape[1] # correct length in case its too long
             cos = np.cos(np.linspace(0, end, num=lengths[i]) )
-            scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]] = scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]] + cos*add_ons[i]
+          #  print(scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]].shape, scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]].shape, torch.tensor(cos*add_ons[i]).unsqueeze(0).shape)
+           
+            scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]] = scan_maxmin[:, lines[i]:lines[i]+2, columns[i]:columns[i]+lengths[i]] + torch.tensor(cos*add_ons[i]).unsqueeze(0)
 
         if r2 < self.p:
           # add some shorter scan line artefacts
-          rng = np.random.default_rng(12345) # random number generator
+          rng = np.random.default_rng() # random number generator
           res = scan.shape[1]
           lines = rng.integers(0,res, (10,)) # which scan lines to augment
           columns = rng.integers(0,res, (10,)) # the columns where the artefacts begin
@@ -166,7 +180,7 @@ class RandomScanLineArtefact(object):
 
         return scan_maxmin
 
-# Custom transformation for random rotation
+
 class RandomRotation_(object):
     '''
     Randomly rotates the image by an angle chosen from a list of angles.
@@ -185,45 +199,52 @@ class RandomRotation_(object):
 class RandomCreep(object):
     '''
     Adds a creep to the top of the image with a probability of p.
+    args:
+    p: probability of adding a creep to the image. The image returned will not be square.
+       Creep is added to the top or bottom of the image with equal probability. 
+    res: if a resolution is given, the image will be returned with shape (2,res,res) (i.e. square) and there will be
+         creep in it (with probability p). Otherwise, the returned image will not be square, and the resolution will vary
+         depending on the creep, further cropping could then cut out the creep.
     '''
-    def __init__(self, p):
+    def __init__(self, p, res=False):
         self.p = p
+        self.res = res
 
     def __call__(self, scan):
         r = random.random()
-        r2 = random.random()
+        
+        
         if r < self.p:
+          r2 = random.random() # probability the creep is at bottom or top
+          gt = scan[1,:,:]
           # generate 3 random ints
           num_lines = np.random.randint(40,50) # num lines the creep is visible in
           a1 = np.random.randint(0,50)
           a2 = np.random.randint(0,50) # factors in the creep polynomial
-          scan_ = torch.clone(scan)
+          sl = np.random.randint(0,scan.shape[-1]-200) # start line (sl), where the creep starts
+          # we do scan.shape[-1]-200 to make sure the creep doesn't start too close to the edge (max shift due to creep is 180 pixels)
+          scan_ = torch.clone(scan[0,:,:]).unsqueeze(0)
           #print('num_lines: ', num_lines, 'a1: ', a1, 'a2: ', a2, 'r2: ', r2)
+          # add creep to top
+          for i in range(0,num_lines):
+            j = num_lines-i
+            roll = (a1*i*i//250 + a2*i*i//100 +i*i//50) // 10
+            scan_[0,2*j+sl:2*(j+1)+sl,:] = torch.roll(scan[0,2*j+sl:2*(j+1)+sl,:], -roll, dims=1)
+          max_roll = (a1*(num_lines)**2//250 + a2*(num_lines)**2//100 + (num_lines)**2//50) // 10
+          
+          scan_ = scan_[0,sl:,max_roll:-max_roll]
+          gt = gt[sl:,max_roll:-max_roll]
+          output = torch.stack((scan_,gt))
+  
+          if self.res != False:
+            output = output[:,0:self.res,:] # make sure creep is visible
+            output = transforms.RandomCrop(self.res)(output)
+
+          # flip with 50% probability
           if r2 < 0.5:
-            # add creep to top
-            if scan.dim() == 3:
-              for i in range(0,num_lines):
-                j = num_lines-i
-                roll = (a1*i*i//250 + a2*i*i//100 +i*i//50) // 10
-                scan_[0,2*j:2*(j+1),:] = torch.roll(scan[0,2*j:2*(j+1),:], -roll, dims=1)
-            elif scan.dim() == 2:
-              for i in range(0,num_lines):
-                j = num_lines-i
-                roll = a1*i*i//250 + a2*i*i//100 +i*i//50
-                scan_[2*j:2*(j+1),:] = torch.roll(scan[2*j:2*(j+1),:], -roll, dims=0)
-          else:
-            res = scan.shape[1]
-            if scan.dim() == 3:
-              for i in range(res-num_lines,res):
-                j = num_lines-i
-                roll = (a1*i*i//250 + a2*i*i//100 +i*i//50) // 10
-                scan_[0,2*j:2*(j+1),:] = torch.roll(scan[0,2*j:2*(j+1),:], -roll, dims=1)
-            elif scan.dim() == 2:
-              for i in range(res-num_lines,res):
-                j = num_lines-i
-                roll = a1*i*i//250 + a2*i*i//100 +i*i//50
-                scan_[2*j:2*(j+1),:] = torch.roll(scan[2*j:2*(j+1),:], -roll, dims=0)
-          return scan_
+            output = output.flip(1)
+          
+          return output
 
         else:
           return scan
@@ -233,20 +254,27 @@ class MedianFilter(object):
     '''
     Applies a median filter to the image.
     '''
-    def __init__(self, size):
-        self.size = size
+    def __init__(self, p):
+        self.p = p
+        
 
     def __call__(self, img):
-        # Convert the image to a NumPy array
-        img_np = np.array(img)
+          if self.p > random.random():
+            # Convert the image to a NumPy array
+            img_np = np.array(img)
 
-        # Apply the median filter
-        filtered_img_np = median_filter(img_np, size=self.size)
+            
+            median_size = np.random.randint(2, 4)
+          # print('median size: ', median_size)
 
-        # Convert the filtered image back to a tensor
-        filtered_img = torch.tensor(filtered_img_np)
+            # Apply the median filter
+            filtered_img_np = median_filter(img_np, size=median_size)
 
-        return filtered_img
+            # Convert the filtered image back to a tensor
+            filtered_img = torch.tensor(filtered_img_np)
+
+            return filtered_img
+          return img
 
 
 class Get_FFT(object):
@@ -278,7 +306,7 @@ class Get_FFT(object):
        # print('fft_img_imag shape: ', fft_img_imag.shape)
 
         return torch.stack((fft_img_real, fft_img_imag), dim=0)
-    
+
 ######################################
 
 ##################################
@@ -286,7 +314,6 @@ class Get_FFT(object):
 ##################################
 
 class STM_double_tip_dataset(Dataset):
-    
     def __init__(self, image_dir, length = 1500, empty = False):
         '''
         Args:
@@ -326,11 +353,11 @@ class STM_double_tip_dataset(Dataset):
             RandomRotation_([0, 90, 180, 270])
             ])
 
-        self.creep_transform = RandomCreep(1)
+        self.creep_transform = RandomCreep(1, res=200)
 
         self.transforms_noise = transforms.Compose([
-            MedianFilter(3),
-            #RandomScanLineArtefact(0.5),
+            MedianFilter(p=0.5),
+            #RandomScanLineArtefact(0.7),
         ])
 
         '''
@@ -343,26 +370,30 @@ class STM_double_tip_dataset(Dataset):
     def __getitem__(self, idx):
         idx = idx % len(self.image_files)
         image = self.image_files[idx].unsqueeze(0)
+        #print(image.shape)
         # max/min normalization
         image = (image-torch.min(image))/(torch.max(image)-torch.min(image))
         #print(image.shape)
         # transforms_both returns the original image (in first channel), and the double tip image in zeroth channel
         image = self.transforms_both(image)
-        # We crop it after making the double tip, since the Double_tip1 transform
+        # apply creep
+        image = self.creep_transform(image[:,:])
+        
+        # We crop it after making the double tip, since the Double_tip1 and creep transforms
         # returns a non-square array (due to overlaying two images with a random offset in x and y)
-        image = transforms.RandomCrop(256)(image)
+        #image = transforms.RandomCrop(200)(image)
 
         # The "label" is the original image, the "image" is the image with the double tip
         label = image[1,:,:]
         image = image[0,:,:]
-       
+       # print(image.shape)
+        # Apply noise transforms, these are applied to the image only, not the "label"
+        image = self.transforms_noise(image)
+       # print(image.shape)
+
         # max/min normalization
         image = (image-torch.min(image))/(torch.max(image)-torch.min(image))
         label = (label-torch.min(label))/(torch.max(label)-torch.min(label))
-
-
-        # Apply noise transforms, these are applied to the image only, not the "label"
-      # image = self.transforms_noise(image)
 
         # get fft
       #  fft = Get_FFT()(image)
@@ -371,21 +402,21 @@ class STM_double_tip_dataset(Dataset):
       #  image = torch.vstack((image, fft))
 
         return image.float(), label.float()
+
+    def get_unaugmented(self, idx):
+        idx = idx % len(self.image_files)
+        image = self.image_files[idx].unsqueeze(0)
+        #print(image.shape)
+        # max/min normalization
+        image = (image-torch.min(image))/(torch.max(image)-torch.min(image))
+       
+        # We crop it 
+        image = transforms.RandomCrop(256)(image)
+       
+        # max/min normalization
+        image = (image-torch.min(image))/(torch.max(image)-torch.min(image))
         
-        # transforms_both returns the original image (in first channel), and the double tip image in zeroth channel
-        both = torch.stack((image, label), dim=0)
-        image = self.transforms_both(both)
-
-
-        # separate the image and the label
-        label = both[1,:,:]
-        image = both[0,:,:]
-
-        # Apply noise transforms, these are applied to the image only, not the label
-        image = self.transforms_image_only(image)
-        
-        return image, label
-    
+        return image.float()
 
 ##################################
 
@@ -501,7 +532,8 @@ class UNetAutoencoder(nn.Module):
 ## TRAINING
 ##################################
 
-def train_autoencoder(model, dataloader_train, dataloader_test, loss_fn, optimizer, scheduler, patience, num_epochs, model_name, device="cuda"):
+def train_autoencoder(model, dataloader_train, dataloader_test, loss_fn, optimizer, scheduler, 
+                      patience, num_epochs, model_name, device="cuda", diff=False):
     """
     Train an autoencoder model and save the best-performing version based on validation loss.
 
@@ -516,6 +548,7 @@ def train_autoencoder(model, dataloader_train, dataloader_test, loss_fn, optimiz
         num_epochs (int): Number of epochs to train.
         model_name (str): Path to save the best model.
         device (str): Device to use for training (e.g., "cuda" or "cpu").
+        diff (Bool): If true, the model predicts noise/double tip, not the final image
 
     Returns:
         dict: Training history containing train and validation loss per epoch.
@@ -540,8 +573,11 @@ def train_autoencoder(model, dataloader_train, dataloader_test, loss_fn, optimiz
 
         for inputs, labels in progress_bar:
             inputs = inputs.to(device)
+            # labels is the perfect image
             labels = labels.to(device)
-
+            if diff:
+              # labels becomes the "noise"/"double tip" part
+              labels = inputs - labels
             # Forward pass
             outputs = model(inputs)
             loss = loss_fn(outputs, labels)  # Compare output to input (reconstruction)
@@ -567,6 +603,9 @@ def train_autoencoder(model, dataloader_train, dataloader_test, loss_fn, optimiz
             for inputs, labels in progress_bar_val:
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+                if diff:
+                    labels = inputs - labels
+                
 
                 # Forward pass
                 outputs = model(inputs)

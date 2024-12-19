@@ -14,7 +14,7 @@ from pathlib import Path
 
 import time
 
-import autoencoder_double_tip as ae
+import scripts.autoencoder_double_tip as ae
 
 # create the datasets
 dataset_train = ae.STM_double_tip_dataset(r'/home/uceenlk/Scratch/pytorch/filled_empty/train/')

@@ -644,6 +644,40 @@ def train_autoencoder(model, dataloader_train, dataloader_test, loss_fn, optimiz
 
     return history
 
+
+class SSIM_L1_Loss(nn.Module):
+    def __init__(self, alpha=0.5):
+        """
+        Custom loss combining SSIM and L1 Loss.
+        Args:
+            alpha (float): Weight for SSIM and L1 loss combination. 
+                           alpha=0.5 gives equal importance to both losses.
+        """
+        super(SSIM_L1_Loss, self).__init__()
+        self.alpha = alpha
+        self.l1_loss = nn.L1Loss()
+
+    def forward(self, predictions, targets):
+        """
+        Compute the combined SSIM and L1 loss.
+        Args:
+            predictions: Predicted images (B, C, H, W).
+            targets: Ground truth images (B, C, H, W).
+        Returns:
+            Combined loss value.
+        """
+        # SSIM loss (SSIM ranges from -1 to 1, so 1 - SSIM is treated as the loss)
+        ssim_value = ssim(predictions, targets, data_range=1.0)  # SSIM score
+        ssim_loss = 1 - ssim_value  # Convert SSIM to loss (lower SSIM = higher loss)
+
+        # L1 loss
+        l1_loss = self.l1_loss(predictions, targets)
+
+        # Combined loss
+        combined_loss = self.alpha * ssim_loss + (1 - self.alpha) * l1_loss
+        return combined_loss
+
+
 # Function to save the model
 def save_model(model, path):
     torch.save(model.state_dict(), path)

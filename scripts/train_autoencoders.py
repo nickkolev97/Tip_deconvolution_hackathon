@@ -21,6 +21,7 @@ dataset_train = ae.STM_double_tip_dataset(r'/home/uceenlk/Scratch/pytorch/filled
 dataset_test = ae.STM_double_tip_dataset(r'/home/uceenlk/Scratch/pytorch/filled_empty/test/', length = 500)
 
 # create dataloaders and samplers (we want to sample without replacement)
+print('Creating dataloaders and samplers...')
 batchSize = 32
 sampler_train = RandomSampler(dataset_train, replacement=False)
 sampler_test = RandomSampler(dataset_test, replacement=False)
@@ -31,13 +32,16 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
 # Create the autoencoder model with no skip connections
+print('Creating autoencoder model...')
 autoencoder = ae.Autoencoder()
 
+print('Defining loss and optimizer...')
 # Loss and Optimizer
 criterion = nn.L1Loss()
 optimizer1 = optim.Adam(autoencoder.parameters(), lr=0.001)
 scheduler1 = optim.lr_scheduler.ReduceLROnPlateau(optimizer1, 'min')
 
+print('Starting training...')
 # Train the autoencoder
 history1 = ae.train_autoencoder(
     model=autoencoder,

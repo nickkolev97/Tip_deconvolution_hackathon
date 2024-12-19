@@ -377,11 +377,11 @@ class STM_double_tip_dataset(Dataset):
         # transforms_both returns the original image (in first channel), and the double tip image in zeroth channel
         image = self.transforms_both(image)
         # apply creep
-        image = self.creep_transform(image[:,:])
+        #image = self.creep_transform(image[:,:])
         
         # We crop it after making the double tip, since the Double_tip1 and creep transforms
         # returns a non-square array (due to overlaying two images with a random offset in x and y)
-        #image = transforms.RandomCrop(200)(image)
+        image = transforms.RandomCrop(256)(image)
 
         # The "label" is the original image, the "image" is the image with the double tip
         label = image[1,:,:]
@@ -432,15 +432,15 @@ class Autoencoder(nn.Module):
         self.encoder = nn.Sequential(nn.Conv2d(1,32, kernel_size=3, padding='same'),
                                      nn.ReLU(inplace=True),
                                      nn.BatchNorm2d(32),
-                                     nn.Conv2d(32,32, kernel_size=3, padding='same'),
-                                     nn.ReLU(inplace=True),
-                                     nn.BatchNorm2d(32),
+                                     #nn.Conv2d(32,32, kernel_size=3, padding='same'),
+                                     #nn.ReLU(inplace=True),
+                                     #nn.BatchNorm2d(32),
                                      nn.Conv2d(32,64, kernel_size=3, padding='same'),
                                      nn.ReLU(inplace=True),
                                      nn.BatchNorm2d(64),
-                                     nn.Conv2d(64,64, kernel_size=3, padding='same'),
-                                     nn.ReLU(inplace=True),
-                                     nn.BatchNorm2d(64),
+                                     #nn.Conv2d(64,64, kernel_size=3, padding='same'),
+                                     #nn.ReLU(inplace=True),
+                                     #nn.BatchNorm2d(64),
                                      nn.MaxPool2d(2,2)
         )
 
@@ -457,15 +457,15 @@ class Autoencoder(nn.Module):
                                      nn.Conv2d(128, 64, kernel_size=3, padding='same'),
                                      nn.ReLU(inplace=True),
                                      nn.BatchNorm2d(64),
-                                     nn.Conv2d(64, 64, kernel_size=3, padding='same'),
-                                     nn.ReLU(inplace=True),
-                                     nn.BatchNorm2d(64),
+                                     #nn.Conv2d(64, 64, kernel_size=3, padding='same'),
+                                     #nn.ReLU(inplace=True),
+                                     #nn.BatchNorm2d(64),
                                      nn.Conv2d(64, 32, kernel_size=3, padding='same'),
                                      nn.ReLU(inplace=True),
                                      nn.BatchNorm2d(32),
-                                     nn.Conv2d(32, 32, kernel_size=3, padding='same'),
-                                     nn.ReLU(inplace=True),
-                                     nn.BatchNorm2d(32),
+                                     #nn.Conv2d(32, 32, kernel_size=3, padding='same'),
+                                     #nn.ReLU(inplace=True),
+                                     #nn.BatchNorm2d(32),
                                      nn.Conv2d(32, 1, kernel_size=1),
                                      nn.Tanh()
         )
